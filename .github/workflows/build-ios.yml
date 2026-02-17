@@ -35,18 +35,18 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('ec2-photos/pnpm-lock.yaml') }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
     
     - name: Install Rust toolchain
-      uses: dtolnay/rust-action@stable
+      uses: dtolnay/rust-toolchain@stable
       with:
         targets: aarch64-apple-ios, aarch64-apple-ios-sim
     
     - name: Install dependencies
       working-directory: ec2-photos
-      run: pnpm install --frozen-lockfile
+      run: pnpm install
     
     - name: Install Tauri CLI
       run: cargo install tauri-cli --version "^2.0"
