@@ -44,6 +44,16 @@ jobs:
       with:
         targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
     
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.4
+      with:
+        version: "v0.8.0"
+    
+    - name: Configure sccache
+      run: |
+        echo "SCCACHE_GHA_ENABLED=true" >> $GITHUB_ENV
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+    
     - name: Setup Java
       uses: actions/setup-java@v4
       with:

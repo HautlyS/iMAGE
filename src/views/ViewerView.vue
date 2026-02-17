@@ -6,7 +6,7 @@
       </button>
       <h1 class="file-name">{{ fileName }}</h1>
       <button @click="downloadFile" class="action-btn">
-        <DownloadIcon :size={20} />
+        <DownloadIcon :size="20" />
       </button>
     </header>
 
@@ -41,7 +41,7 @@
           <FileIcon :size="64" />
           <p>This file type cannot be previewed</p>
           <button @click="downloadFile" class="download-btn">
-            <DownloadIcon :size={16} />
+            <DownloadIcon :size="16" />
             Download File
           </button>
         </div>
