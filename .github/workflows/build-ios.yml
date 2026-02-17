@@ -53,7 +53,7 @@ jobs:
     - name: Build iOS App
       run: |
         pnpm tauri ios init
-        pnpm tauri ios build --release
+        pnpm tauri ios build
     
     - name: Build unsigned IPA archive
       run: |

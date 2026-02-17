@@ -67,7 +67,7 @@ jobs:
     - name: Build Android APK
       run: |
         pnpm tauri android init
-        pnpm tauri android build --apk --release
+        pnpm tauri android build --apk
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
