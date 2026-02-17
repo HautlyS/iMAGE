@@ -39,39 +39,23 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
     
-    - name: Setup Rust cache
-      uses: Swatinem/rust-cache@v2
-      with:
-        workspaces: "src-tauri"
-        cache-all-crates: "true"
-    
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: aarch64-apple-ios, aarch64-apple-ios-sim
-    
     - name: Install dependencies
       run: pnpm install
     
     - name: Build frontend (Release Mode)
       run: pnpm build
     
-    - name: Install Tauri CLI
-      run: cargo install tauri-cli --version "^2.0"
+    - name: Build iOS with Tauri Action
+      uses: tauri-apps/tauri-action@v0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        projectPath: .
+        args: --target aarch64-apple-ios --bundles app
+        includeDebug: false
+        includeRelease: true
     
-    - name: Initialize iOS project with bundled assets
-      run: |
-        # Remove existing iOS project if it exists to ensure fresh bundle
-        rm -rf src-tauri/gen/apple
-        
-        # Initialize iOS project - this copies the dist folder into the iOS bundle
-        cargo tauri ios init
-        
-        # Verify the assets are bundled
-        ls -la src-tauri/gen/apple/assets/ || echo "Assets directory structure:"
-        find src-tauri/gen/apple -name "dist" -type d
-    
-    - name: Build iOS archive (Release Mode)
+    - name: Build unsigned IPA archive
       run: |
         cd src-tauri/gen/apple
         

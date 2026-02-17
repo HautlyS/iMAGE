@@ -39,17 +39,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pnpm-store-
     
-    - name: Setup Rust cache
-      uses: Swatinem/rust-cache@v2
-      with:
-        workspaces: "src-tauri"
-        cache-all-crates: "true"
-    
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
-    
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
@@ -70,30 +59,17 @@ jobs:
     - name: Build frontend (Release Mode)
       run: pnpm build
     
-    - name: Install Tauri CLI
-      run: cargo install tauri-cli --version "^2.0"
-    
-    - name: Initialize Android project with bundled assets
-      run: |
-        # Remove existing Android project if it exists to ensure fresh bundle
-        rm -rf src-tauri/gen/android
-        
-        # Initialize Android project - this copies the dist folder into the Android bundle
-        cargo tauri android init
-        
-        # Verify the assets are bundled
-        ls -la src-tauri/gen/android/app/src/main/assets/ || echo "Assets directory structure:"
-        find src-tauri/gen/android -name "dist" -type d
+    - name: Build Android with Tauri Action
+      uses: tauri-apps/tauri-action@v0
       env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
-    
-    - name: Build APK (Release Mode)
-      run: |
-        cargo tauri android build --apk --release
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
+      with:
+        projectPath: .
+        args: --target aarch64-linux-android --bundles apk
+        includeDebug: false
+        includeRelease: true
     
     - name: Find and rename APKs
       run: |
