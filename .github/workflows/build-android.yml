@@ -61,12 +61,29 @@ jobs:
     - name: Install dependencies
       run: pnpm install
     
+    - name: Build frontend (Release Mode)
+      run: pnpm build
+    
     - name: Install Tauri CLI
       run: cargo install tauri-cli --version "^2.0"
     
-    - name: Build APK (release unsigned)
+    - name: Initialize Android project with bundled assets
       run: |
-        cargo tauri android init || true
+        # Remove existing Android project if it exists to ensure fresh bundle
+        rm -rf src-tauri/gen/android
+        
+        # Initialize Android project - this copies the dist folder into the Android bundle
+        cargo tauri android init
+        
+        # Verify the assets are bundled
+        ls -la src-tauri/gen/android/app/src/main/assets/ || echo "Assets directory structure:"
+        find src-tauri/gen/android -name "dist" -type d
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
+    
+    - name: Build APK (Release Mode)
+      run: |
         cargo tauri android build --apk --release
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}

@@ -47,16 +47,32 @@ jobs:
     - name: Install dependencies
       run: pnpm install
     
+    - name: Build frontend (Release Mode)
+      run: pnpm build
+    
     - name: Install Tauri CLI
       run: cargo install tauri-cli --version "^2.0"
     
-    - name: Build iOS project (unsigned)
+    - name: Initialize iOS project with bundled assets
       run: |
-        # Generate iOS project
-        cargo tauri ios init || true
+        # Remove existing iOS project if it exists to ensure fresh bundle
+        rm -rf src-tauri/gen/apple
+        
+        # Initialize iOS project - this copies the dist folder into the iOS bundle
+        cargo tauri ios init
+        
+        # Verify the assets are bundled
+        ls -la src-tauri/gen/apple/assets/ || echo "Assets directory structure:"
+        find src-tauri/gen/apple -name "dist" -type d
+    
+    - name: Build iOS archive (Release Mode)
+      run: |
+        cd src-tauri/gen/apple
+        
+        # List available schemes for debugging
+        xcodebuild -list -project "iMAGE.xcodeproj"
         
         # Build archive
-        cd src-tauri/gen/apple
         xcodebuild archive \
           -project "iMAGE.xcodeproj" \
           -scheme "iMAGE_iOS" \
@@ -66,11 +82,14 @@ jobs:
           CODE_SIGN_IDENTITY="" \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO \
-          ENABLE_BITCODE=NO
+          ENABLE_BITCODE=NO \
+          ONLY_ACTIVE_ARCH=NO \
+          BUILD_LIBRARY_FOR_DISTRIBUTION=NO
     
     - name: Create IPA from archive
       working-directory: build
       run: |
+        ls -la unsigned.xcarchive/Products/
         cd unsigned.xcarchive/Products
         mv Applications Payload
         zip -r ../iMAGE.ipa Payload

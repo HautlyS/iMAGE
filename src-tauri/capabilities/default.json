@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default permissions for EC2 Photos",
+  "description": "Default permissions for iMAGE app",
   "windows": ["main"],
   "permissions": [
     "core:default",
