@@ -72,7 +72,7 @@ jobs:
     - name: Build Android APK (Release)
       run: |
         pnpm tauri android init --ci
-        pnpm tauri android build --release --apk
+        pnpm tauri android build --apk
       env:
         CI: "true"
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}

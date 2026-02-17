@@ -62,7 +62,7 @@ jobs:
     
     - name: Build iOS Release (No Codesign)
       run: |
-        pnpm tauri ios build --release --no-sign -v
+        pnpm tauri ios build --no-sign -v
       env:
         CI: "true"
     
