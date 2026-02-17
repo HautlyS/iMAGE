@@ -1,3 +1,3 @@
 fn main() {
-    image::run();
+    image_lib::run();
 }

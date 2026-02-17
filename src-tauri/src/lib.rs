@@ -7,6 +7,7 @@ pub struct AppState {
     pub connection: Mutex<Option<ssh::SshConnection>>,
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
