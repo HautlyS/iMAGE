@@ -47,25 +47,20 @@ jobs:
     - name: Install dependencies
       run: pnpm install
     
-    - name: Build frontend (Release Mode)
+    - name: Build frontend
       run: pnpm build
     
-    - name: Build iOS App
-      run: |
-        pnpm tauri ios init
-        pnpm tauri ios build
+    - name: Initialize iOS project
+      run: pnpm tauri ios init
     
     - name: Build unsigned IPA archive
       run: |
         cd src-tauri/gen/apple
         
-        # List available schemes for debugging
-        xcodebuild -list -project "iMAGE.xcodeproj"
-        
-        # Build archive
+        # Build archive without signing
         xcodebuild archive \
-          -project "iMAGE.xcodeproj" \
-          -scheme "iMAGE_iOS" \
+          -project "ec2-photos.xcodeproj" \
+          -scheme "ec2-photos_iOS" \
           -archivePath "../../../build/unsigned.xcarchive" \
           -configuration Release \
           -destination "generic/platform=iOS" \
