@@ -50,15 +50,10 @@ jobs:
     - name: Build frontend (Release Mode)
       run: pnpm build
     
-    - name: Build iOS with Tauri Action
-      uses: tauri-apps/tauri-action@v0
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        projectPath: .
-        args: --target aarch64-apple-ios --bundles app
-        includeDebug: false
-        includeRelease: true
+    - name: Build iOS App
+      run: |
+        pnpm tauri ios init
+        pnpm tauri ios build --release
     
     - name: Build unsigned IPA archive
       run: |
