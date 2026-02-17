@@ -59,14 +59,12 @@ jobs:
         sdkmanager "cmake;3.22.1"
     
     - name: Install dependencies
-      working-directory: ec2-photos
       run: pnpm install
     
     - name: Install Tauri CLI
       run: cargo install tauri-cli --version "^2.0"
     
     - name: Build APK (release unsigned)
-      working-directory: ec2-photos
       run: |
         cargo tauri android init || true
         cargo tauri android build --apk --release
@@ -75,7 +73,6 @@ jobs:
         NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
     
     - name: Find and rename APKs
-      working-directory: ec2-photos
       run: |
         mkdir -p build
         find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" -type f | while read apk; do
@@ -88,14 +85,14 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: iMAGE-apks
-        path: ec2-photos/build/*.apk
+        path: build/*.apk
         retention-days: 30
     
     - name: Upload to Release
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: ec2-photos/build/*.apk
+        files: build/*.apk
         draft: true
         prerelease: true
       env:
