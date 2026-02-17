@@ -2,7 +2,6 @@ pub mod commands;
 pub mod ssh;
 
 use std::sync::Mutex;
-use tauri::Manager;
 
 pub struct AppState {
     pub connection: Mutex<Option<ssh::SshConnection>>,
