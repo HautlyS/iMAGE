@@ -1,0 +1,102 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 9
+        run_install: false
+    
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+    
+    - name: Setup pnpm cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('ec2-photos/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+    
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-action@stable
+      with:
+        targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Install NDK
+      run: |
+        sdkmanager "ndk;25.2.9519653"
+        sdkmanager "cmake;3.22.1"
+    
+    - name: Install dependencies
+      working-directory: ec2-photos
+      run: pnpm install --frozen-lockfile
+    
+    - name: Install Tauri CLI
+      run: cargo install tauri-cli --version "^2.0"
+    
+    - name: Build APK (release unsigned)
+      working-directory: ec2-photos
+      run: |
+        cargo tauri android init || true
+        cargo tauri android build --apk --release
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
+    
+    - name: Find and rename APKs
+      working-directory: ec2-photos
+      run: |
+        mkdir -p build
+        find src-tauri/gen/android/app/build/outputs/apk -name "*.apk" -type f | while read apk; do
+          filename=$(basename "$apk")
+          cp "$apk" "build/iMAGE-${filename}"
+        done
+        ls -la build/
+    
+    - name: Upload APK artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: iMAGE-apks
+        path: ec2-photos/build/*.apk
+        retention-days: 30
+    
+    - name: Upload to Release
+      if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ec2-photos/build/*.apk
+        draft: true
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

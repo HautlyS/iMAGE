@@ -1,0 +1,42 @@
+.DS_Store
+node_modules/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+
+# Tauri
+target/
+Cargo.lock
+src-tauri/gen/android/
+src-tauri/gen/ios/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Editor directories and files
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Mobile
+*.apk
+*.ipa
+*.xcarchive
+build/
