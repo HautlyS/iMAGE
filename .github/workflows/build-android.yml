@@ -44,6 +44,11 @@ jobs:
       with:
         targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
     
+    - name: Cache Rust
+      uses: swatinem/rust-cache@v2
+      with:
+        key: ${{ runner.os }}-android
+    
     - name: Setup Java
       uses: actions/setup-java@v4
       with:
@@ -61,14 +66,15 @@ jobs:
     - name: Install dependencies
       run: pnpm install
     
-    - name: Build frontend (Release Mode)
+    - name: Build frontend
       run: pnpm build
     
-    - name: Build Android APK
+    - name: Build Android APK (Release)
       run: |
-        pnpm tauri android init
-        pnpm tauri android build --apk
+        pnpm tauri android init --ci
+        pnpm tauri android build --release --apk
       env:
+        CI: "true"
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
     
