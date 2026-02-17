@@ -58,10 +58,16 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
     
-    - name: Install NDK
+    - name: Install NDK and set up toolchain
       run: |
-        sdkmanager "ndk;25.2.9519653"
+        sdkmanager "ndk;27.0.12077973"
         sdkmanager "cmake;3.22.1"
+        
+        NDK_PATH="${ANDROID_SDK_ROOT}/ndk/27.0.12077973"
+        echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+        
+        TOOLCHAIN="$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64"
+        echo "$TOOLCHAIN/bin" >> $GITHUB_PATH
     
     - name: Install dependencies
       run: pnpm install
@@ -69,14 +75,14 @@ jobs:
     - name: Build frontend
       run: pnpm build
     
-    - name: Build Android APK (Release)
+    - name: Build Android APK
       run: |
         pnpm tauri android init --ci
         pnpm tauri android build --apk
       env:
         CI: "true"
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/25.2.9519653
+        NDK_HOME: ${{ env.NDK_HOME }}
     
     - name: Find and rename APKs
       run: |
