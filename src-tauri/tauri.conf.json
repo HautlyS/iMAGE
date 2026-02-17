@@ -24,17 +24,9 @@
       "csp": "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'"
     }
   },
-  "plugins": {
-    "shell": {
-      "open": true
-    },
-    "fs": {
-      "scope": ["$APPLOCALDATA/**", "$TEMP/**"]
-    }
-  },
   "bundle": {
     "active": true,
-    "targets": ["ios", "android", "deb", "appimage", "dmg", "msi"],
+    "targets": "all",
     "category": "Photography",
     "copyright": "2026 iMAGE",
     "shortDescription": "Browse EC2 files like Google Photos",
@@ -47,12 +39,7 @@
       "icons/icon.ico"
     ],
     "iOS": {
-      "minimumSystemVersion": "14.0",
-      "developmentTeam": ""
-    },
-    "android": {
-      "minSdkVersion": 24,
-      "targetSdkVersion": 34
+      "minimumSystemVersion": "14.0"
     }
   }
 }
