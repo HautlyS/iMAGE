@@ -59,8 +59,8 @@ jobs:
         
         # Build archive without signing
         xcodebuild archive \
-          -project "ec2-photos.xcodeproj" \
-          -scheme "ec2-photos_iOS" \
+          -project "image.xcodeproj" \
+          -scheme "iMAGE_iOS" \
           -archivePath "../../../build/unsigned.xcarchive" \
           -configuration Release \
           -destination "generic/platform=iOS" \

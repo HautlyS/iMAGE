@@ -1,12 +1,12 @@
 [package]
-name = "ec2-photos"
+name = "iMAGE"
 version = "1.0.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "ec2_photos_lib"
+name = "image_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

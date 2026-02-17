@@ -36,7 +36,7 @@ A Google Photos-like mobile application for browsing files on EC2 instances. Con
 
 ```bash
 # Navigate to project
-cd ec2-photos
+cd iMAGE
 
 # Install dependencies
 pnpm install
@@ -96,7 +96,7 @@ Both workflows run on:
 ## Project Structure
 
 ```
-ec2-photos/
+iMAGE/
 ├── .github/workflows/    # CI/CD workflows
 ├── src/                  # Vue.js frontend
 │   ├── components/       # Vue components
