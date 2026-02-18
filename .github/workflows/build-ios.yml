@@ -61,22 +61,14 @@ jobs:
       env:
         CI: "true"
     
-    - name: Build Rust library for iOS Simulator
-      run: |
-        cd src-tauri
-        cargo build --target aarch64-apple-ios-sim --release
-      env:
-        CI: "true"
-    
     - name: Build iOS app for Simulator (no code signing)
       run: |
-        # Create a wrapper script to bypass Tauri's xcode-script requirements
-        # The xcode-script looks for a server-addr file, we'll create it
+        # Create the server-addr file that Tauri xcode-script expects
         mkdir -p /tmp
         echo "127.0.0.1:5173" > /tmp/com.hautlys.image-server-addr
         
-        # Build the app
-        pnpm tauri ios build --target aarch64-apple-ios-sim || true
+        # Build using correct target format: aarch64-sim (not aarch64-apple-ios-sim)
+        pnpm tauri ios build --target aarch64-sim
       env:
         CI: "true"
     
@@ -101,9 +93,7 @@ jobs:
           echo "Created IPA: ${GITHUB_WORKSPACE}/output/iMAGE-unsigned.ipa"
           ls -la "${GITHUB_WORKSPACE}/output/"
         else
-          echo "No .app found, checking build directories..."
-          ls -la src-tauri/gen/android/app/build/outputs/ 2>/dev/null || true
-          find ~/Library/Developer/Xcode/DerivedData -name "*.app" -type d 2>/dev/null | head -5 || true
+          echo "No .app found"
           exit 1
         fi
     
