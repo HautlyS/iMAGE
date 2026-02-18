@@ -61,31 +61,6 @@ jobs:
       env:
         CI: "true"
     
-    - name: Fix Xcode project - Replace Tauri script with cargo build
-      run: |
-        # Find the project file
-        PROJECT_FILE="src-tauri/gen/apple/iMAGE.xcodeproj/project.pbxproj"
-        
-        if [ -f "$PROJECT_FILE" ]; then
-          echo "Modifying Xcode project to replace Tauri script..."
-          
-          # Replace the Tauri xcode-script with a simple cargo build command
-          # The script phase is looking for a file that doesn't exist in CI
-          # We'll replace it with a direct cargo build
-          
-          # First, let's see what the script looks like
-          grep -A 20 "shellScript" "$PROJECT_FILE" | head -30
-          
-          # Replace the tauri ios xcode-script with cargo build
-          sed -i '' 's/pnpm tauri ios xcode-script/cargo build --target aarch64-apple-ios-sim --release --manifest-path src-tauri\\/Cargo.toml #/g' "$PROJECT_FILE"
-          
-          echo "Modified script"
-          grep -A 20 "shellScript" "$PROJECT_FILE" | head -30
-        else
-          echo "Project file not found at $PROJECT_FILE"
-          ls -la src-tauri/gen/apple/ || true
-        fi
-    
     - name: Build Rust library for iOS Simulator
       run: |
         cd src-tauri
@@ -93,9 +68,40 @@ jobs:
       env:
         CI: "true"
     
+    - name: Fix Xcode project - Replace Tauri script with cargo build
+      run: |
+        PROJECT_FILE="src-tauri/gen/apple/iMAGE.xcodeproj/project.pbxproj"
+        
+        if [ -f "$PROJECT_FILE" ]; then
+          echo "Modifying Xcode project..."
+          
+          # Use Python for safer string replacement
+          python3 << 'PYTHON_SCRIPT'
+import re
+
+with open("src-tauri/gen/apple/iMAGE.xcodeproj/project.pbxproj", "r") as f:
+    content = f.read()
+
+# Replace the shell script with a simple echo (we already built Rust manually)
+# The script tries to run pnpm tauri ios xcode-script which needs a dev server
+old_pattern = r'shellScript = "pnpm tauri ios xcode-script[^"]*"'
+new_script = 'shellScript = "echo Rust already built"'
+content = re.sub(old_pattern, new_script, content)
+
+with open("src-tauri/gen/apple/iMAGE.xcodeproj/project.pbxproj", "w") as f:
+    f.write(content)
+
+print("Modified Xcode project successfully")
+PYTHON_SCRIPT
+          
+          echo "Done"
+        else
+          echo "Project file not found"
+          exit 1
+        fi
+    
     - name: Build iOS app for Simulator (unsigned)
       run: |
-        # Build using xcodebuild with code signing disabled
         xcodebuild \
           -project src-tauri/gen/apple/iMAGE.xcodeproj \
           -scheme iMAGE_iOS \
@@ -116,7 +122,6 @@ jobs:
         echo "Looking for .app bundles..."
         find build -name "*.app" -type d 2>/dev/null | head -20
         
-        # Find the built .app
         APP_PATH=$(find build -name "*.app" -type d | head -1)
         
         if [ -n "$APP_PATH" ]; then
