@@ -61,13 +61,58 @@ jobs:
       env:
         CI: "true"
     
+    - name: Fix Xcode project - Add zlib linking
+      run: |
+        PROJECT_FILE="src-tauri/gen/apple/iMAGE.xcodeproj/project.pbxproj"
+        
+        if [ -f "$PROJECT_FILE" ]; then
+          echo "Adding zlib to linked libraries..."
+          
+          # Add libz.tbd to the project's linked libraries
+          # This fixes the "Undefined symbols: _deflate, _inflate" error from ssh2 crate
+          python3 << 'PYTHON_SCRIPT'
+import re
+
+with open("src-tauri/gen/apple/iMAGE.xcodeproj/project.pbxproj", "r") as f:
+    content = f.read()
+
+# Find the build settings section and add libz to linked libraries
+# Look for OTHER_LDFLAGS and add -lz
+if 'OTHER_LDFLAGS' in content:
+    # Add -lz to existing OTHER_LDFLAGS
+    content = re.sub(
+        r'(OTHER_LDFLAGS\s*=\s*\([^)]*)',
+        r'\1 "-lz"',
+        content
+    )
+else:
+    # Add OTHER_LDFLAGS with -lz
+    content = re.sub(
+        r'(buildSettings\s*=\s*\{)',
+        r'\1\n\t\t\t\tOTHER_LDFLAGS = ("-lz");',
+        content,
+        count=1
+    )
+
+with open("src-tauri/gen/apple/iMAGE.xcodeproj/project.pbxproj", "w") as f:
+    f.write(content)
+
+print("Added zlib linking successfully")
+PYTHON_SCRIPT
+          
+          echo "Done"
+        else
+          echo "Project file not found"
+          exit 1
+        fi
+    
     - name: Build iOS app for Simulator (no code signing)
       run: |
         # Create the server-addr file that Tauri xcode-script expects
         mkdir -p /tmp
         echo "127.0.0.1:5173" > /tmp/com.hautlys.image-server-addr
         
-        # Build using correct target format: aarch64-sim (not aarch64-apple-ios-sim)
+        # Build using correct target format
         pnpm tauri ios build --target aarch64-sim
       env:
         CI: "true"
