@@ -15,7 +15,7 @@
           @click="storageType = 'ec2'"
         >
           <ServerIcon :size="20" />
-          <span>EC2 / S3</span>
+          <span>EC2 Server</span>
         </button>
         <button
           :class="['type-btn', { active: storageType === 'github' }]"
@@ -36,6 +36,7 @@
               type="text"
               placeholder="192.168.1.1 or ec2-xxx.compute.amazonaws.com"
               required
+              autocomplete="off"
             />
           </div>
 
@@ -47,6 +48,7 @@
               type="text"
               placeholder="ec2-user, ubuntu, root..."
               required
+              autocomplete="username"
             />
           </div>
 
@@ -57,6 +59,8 @@
               v-model="ec2Form.port"
               type="number"
               placeholder="22"
+              min="1"
+              max="65535"
             />
           </div>
 
@@ -87,6 +91,7 @@
               type="text"
               placeholder="git@github.com:username/repo.git"
               required
+              autocomplete="off"
             />
           </div>
 
@@ -166,6 +171,9 @@
           <component :is="savedConfigIcon" :size="16" />
           <span>{{ savedConfigDescription }}</span>
         </button>
+        <button @click="clearSavedConnection" class="clear-btn" title="Clear saved connection">
+          <XIcon :size="14" />
+        </button>
       </div>
     </div>
   </div>
@@ -183,6 +191,7 @@ import {
   AlertCircleIcon,
   ServerIcon,
   InfoIcon,
+  XIcon,
 } from 'lucide-vue-next'
 import GithubIcon from '../components/GithubIcon.vue'
 
@@ -245,6 +254,9 @@ function handlePemFileChange(event: Event) {
       const content = e.target?.result as string
       ec2Form.value.pemContent = btoa(content)
     }
+    reader.onerror = () => {
+      connectionStore.error = 'Failed to read PEM file'
+    }
     reader.readAsText(file)
   }
 }
@@ -259,6 +271,9 @@ function handleSshKeyFileChange(event: Event) {
     reader.onload = (e) => {
       const content = e.target?.result as string
       githubForm.value.sshKeyContent = btoa(content)
+    }
+    reader.onerror = () => {
+      connectionStore.error = 'Failed to read SSH key file'
     }
     reader.readAsText(file)
   }
@@ -299,6 +314,11 @@ async function useSavedConnection() {
       router.push('/gallery')
     }
   }
+}
+
+function clearSavedConnection() {
+  localStorage.removeItem('image-connection')
+  connectionStore.savedConfig = null
 }
 </script>
 
@@ -414,6 +434,11 @@ async function useSavedConnection() {
   border-color: var(--color-primary);
 }
 
+.form-group input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
 .file-input-wrapper {
   position: relative;
 }
@@ -446,6 +471,9 @@ async function useSavedConnection() {
 .file-label span {
   color: var(--color-text-secondary);
   font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .info-box {
@@ -501,6 +529,7 @@ async function useSavedConnection() {
   padding-top: var(--spacing-lg);
   border-top: 1px solid var(--color-border);
   text-align: center;
+  position: relative;
 }
 
 .saved-connection p {
@@ -526,6 +555,28 @@ async function useSavedConnection() {
 .saved-btn:hover {
   background: var(--color-hover);
   border-color: var(--color-primary);
+}
+
+.clear-btn {
+  position: absolute;
+  right: 0;
+  top: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
 .spin {

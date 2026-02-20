@@ -1,9 +1,13 @@
 use crate::storage::{detect_mime_type, FileInfo, Storage, StorageType};
+use crate::utils;
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
 use std::io::Read;
 use std::net::TcpStream;
 use std::path::Path;
+use std::time::Duration;
+
+const CONNECTION_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Ec2Config {
@@ -25,27 +29,21 @@ impl Ec2Storage {
             session: None,
         }
     }
-
-    pub fn from_config(host: String, username: String, pem_content: String, port: u16) -> Self {
-        Ec2Storage::new(Ec2Config {
-            host,
-            username,
-            pem_content,
-            port,
-        })
-    }
 }
 
 impl Storage for Ec2Storage {
     fn connect(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let addr = format!("{}:{}", self.config.host, self.config.port);
-        let tcp = TcpStream::connect(&addr)?;
+        let tcp = TcpStream::connect_timeout(
+            &addr.parse()?,
+            Duration::from_secs(CONNECTION_TIMEOUT_SECS),
+        )?;
 
         let mut session = Session::new()?;
         session.set_tcp_stream(tcp);
         session.handshake()?;
 
-        let pem_bytes = base64_decode(&self.config.pem_content)?;
+        let pem_bytes = utils::base64_decode(&self.config.pem_content)?;
         let pem_str = String::from_utf8(pem_bytes)?;
 
         session.userauth_pubkey_memory(&self.config.username, None, &pem_str, None)?;
@@ -122,7 +120,7 @@ impl Storage for Ec2Storage {
         _max_size: u32,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let content = self.read_file(path)?;
-        let base64_content = base64_encode(&content);
+        let base64_content = utils::base64_encode(&content);
         Ok(format!("data:image/jpeg;base64,{}", base64_content))
     }
 
@@ -137,16 +135,6 @@ impl Storage for Ec2Storage {
     fn storage_type(&self) -> StorageType {
         StorageType::Ec2
     }
-}
-
-fn base64_decode(input: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    use base64::Engine;
-    Ok(base64::engine::general_purpose::STANDARD.decode(input)?)
-}
-
-fn base64_encode(input: &[u8]) -> String {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD.encode(input)
 }
 
 #[cfg(test)]

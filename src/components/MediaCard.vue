@@ -2,7 +2,14 @@
   <div class="media-card" :class="{ 'is-video': isVideo, 'is-image': isImage }">
     <div class="media-thumbnail">
       <template v-if="isImage">
-        <div class="image-placeholder" :style="{ backgroundColor: getRandomColor() }">
+        <img
+          v-if="thumbnailLoaded"
+          :src="thumbnailUrl"
+          :alt="file.name"
+          class="thumbnail-image"
+          @error="onThumbnailError"
+        />
+        <div v-else class="image-placeholder" :style="{ backgroundColor: getRandomColor() }">
           <ImageIcon :size="24" />
         </div>
       </template>
@@ -28,18 +35,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import { ImageIcon, PlayIcon, FileIcon, VideoIcon } from 'lucide-vue-next'
 import type { FileInfo } from '../stores/connection'
 
 interface Props {
   file: FileInfo
+  index?: number
 }
 
 const props = defineProps<Props>()
 
 const isImage = computed(() => props.file.mimeType?.startsWith('image/'))
-const isVideo = computed(() => props.file.mimeType === 'video')
+const isVideo = computed(() => props.file.mimeType?.startsWith('video/'))
+
+const thumbnailLoaded = ref(false)
+const thumbnailUrl = ref('')
 
 const colors = [
   '#667eea', '#764ba2', '#f093fb', '#f5576c',
@@ -51,6 +63,22 @@ function getRandomColor() {
   const index = props.file.name.charCodeAt(0) % colors.length
   return colors[index]
 }
+
+function onThumbnailError() {
+  thumbnailLoaded.value = false
+}
+
+onMounted(async () => {
+  if (isImage.value) {
+    try {
+      const base64Data = await invoke<string>('read_file', { path: props.file.path })
+      thumbnailUrl.value = `data:${props.file.mimeType};base64,${base64Data}`
+      thumbnailLoaded.value = true
+    } catch {
+      thumbnailLoaded.value = false
+    }
+  }
+})
 </script>
 
 <style scoped>
@@ -72,6 +100,12 @@ function getRandomColor() {
   width: 100%;
   height: 100%;
   position: relative;
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .image-placeholder,

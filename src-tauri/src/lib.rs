@@ -2,19 +2,14 @@ pub mod commands;
 pub mod ec2;
 pub mod github;
 pub mod storage;
+pub mod utils;
 
-use std::sync::Mutex;
-
-pub struct AppState {
-    pub storage: Mutex<Option<commands::StorageBackend>>,
-}
+pub use commands::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(AppState {
-            storage: Mutex::new(None),
-        })
+        .manage(AppState::new())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             commands::connect_ec2,

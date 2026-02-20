@@ -69,14 +69,43 @@ pub fn detect_mime_type(filename: &str) -> Option<String> {
         "webp" => Some("image/webp".to_string()),
         "bmp" => Some("image/bmp".to_string()),
         "svg" => Some("image/svg+xml".to_string()),
-        "mp4" | "mov" | "avi" | "mkv" | "webm" | "m4v" => Some("video".to_string()),
-        "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" => Some("audio".to_string()),
+        "heic" | "heif" => Some("image/heic".to_string()),
+        "mp4" => Some("video/mp4".to_string()),
+        "mov" => Some("video/quicktime".to_string()),
+        "avi" => Some("video/x-msvideo".to_string()),
+        "mkv" => Some("video/x-matroska".to_string()),
+        "webm" => Some("video/webm".to_string()),
+        "m4v" => Some("video/x-m4v".to_string()),
+        "mp3" => Some("audio/mpeg".to_string()),
+        "wav" => Some("audio/wav".to_string()),
+        "flac" => Some("audio/flac".to_string()),
+        "aac" => Some("audio/aac".to_string()),
+        "ogg" => Some("audio/ogg".to_string()),
+        "m4a" => Some("audio/mp4".to_string()),
         "pdf" => Some("application/pdf".to_string()),
-        "doc" | "docx" => Some("document".to_string()),
-        "xls" | "xlsx" => Some("spreadsheet".to_string()),
-        "ppt" | "pptx" => Some("presentation".to_string()),
-        "txt" | "md" | "json" | "xml" | "csv" | "log" => Some("text".to_string()),
-        "zip" | "tar" | "gz" | "rar" | "7z" => Some("archive".to_string()),
+        "doc" => Some("application/msword".to_string()),
+        "docx" => Some(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document".to_string(),
+        ),
+        "xls" => Some("application/vnd.ms-excel".to_string()),
+        "xlsx" => {
+            Some("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".to_string())
+        }
+        "ppt" => Some("application/vnd.ms-powerpoint".to_string()),
+        "pptx" => Some(
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation".to_string(),
+        ),
+        "txt" => Some("text/plain".to_string()),
+        "md" => Some("text/markdown".to_string()),
+        "json" => Some("application/json".to_string()),
+        "xml" => Some("application/xml".to_string()),
+        "csv" => Some("text/csv".to_string()),
+        "log" => Some("text/plain".to_string()),
+        "zip" => Some("application/zip".to_string()),
+        "tar" => Some("application/x-tar".to_string()),
+        "gz" => Some("application/gzip".to_string()),
+        "rar" => Some("application/vnd.rar".to_string()),
+        "7z" => Some("application/x-7z-compressed".to_string()),
         _ => Some("file".to_string()),
     }
 }
@@ -118,14 +147,20 @@ mod tests {
             Some("image/jpeg".to_string())
         );
         assert_eq!(detect_mime_type("image.PNG"), Some("image/png".to_string()));
-        assert_eq!(detect_mime_type("video.mp4"), Some("video".to_string()));
-        assert_eq!(detect_mime_type("audio.mp3"), Some("audio".to_string()));
+        assert_eq!(detect_mime_type("video.mp4"), Some("video/mp4".to_string()));
+        assert_eq!(
+            detect_mime_type("audio.mp3"),
+            Some("audio/mpeg".to_string())
+        );
         assert_eq!(
             detect_mime_type("doc.pdf"),
             Some("application/pdf".to_string())
         );
-        assert_eq!(detect_mime_type("file.txt"), Some("text".to_string()));
-        assert_eq!(detect_mime_type("archive.zip"), Some("archive".to_string()));
+        assert_eq!(detect_mime_type("file.txt"), Some("text/plain".to_string()));
+        assert_eq!(
+            detect_mime_type("archive.zip"),
+            Some("application/zip".to_string())
+        );
         assert_eq!(detect_mime_type("unknown.xyz"), Some("file".to_string()));
         assert_eq!(detect_mime_type("noextension"), Some("file".to_string()));
     }

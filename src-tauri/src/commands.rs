@@ -1,6 +1,7 @@
 use crate::ec2::Ec2Storage;
 use crate::github::GitHubStorage;
 use crate::storage::{FileInfo, Storage};
+use crate::utils;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::State;
@@ -30,6 +31,20 @@ pub struct AppState {
     pub storage: Mutex<Option<StorageBackend>>,
 }
 
+impl AppState {
+    pub fn new() -> Self {
+        Self {
+            storage: Mutex::new(None),
+        }
+    }
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Ec2ConnectRequest {
     pub host: String,
@@ -55,11 +70,6 @@ pub struct ConnectResponse {
     pub root_path: Option<String>,
 }
 
-fn base64_encode(input: &[u8]) -> String {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD.encode(input)
-}
-
 #[tauri::command]
 pub async fn connect_ec2(
     state: State<'_, AppState>,
@@ -75,7 +85,7 @@ pub async fn connect_ec2(
     match storage.connect() {
         Ok(()) => {
             let root_path = storage.get_root_path();
-            let mut conn = state.storage.lock().unwrap();
+            let mut conn = state.storage.lock().map_err(|e| e.to_string())?;
             *conn = Some(StorageBackend::Ec2(storage));
             Ok(ConnectResponse {
                 success: true,
@@ -109,7 +119,7 @@ pub async fn connect_github(
     match storage.connect() {
         Ok(()) => {
             let root_path = storage.get_root_path();
-            let mut conn = state.storage.lock().unwrap();
+            let mut conn = state.storage.lock().map_err(|e| e.to_string())?;
             *conn = Some(StorageBackend::GitHub(storage));
             Ok(ConnectResponse {
                 success: true,
@@ -132,7 +142,7 @@ pub async fn list_files(
     state: State<'_, AppState>,
     path: String,
 ) -> Result<Vec<FileInfo>, String> {
-    let conn = state.storage.lock().unwrap();
+    let conn = state.storage.lock().map_err(|e| e.to_string())?;
 
     match conn.as_ref() {
         Some(backend) => backend
@@ -145,13 +155,13 @@ pub async fn list_files(
 
 #[tauri::command]
 pub async fn read_file(state: State<'_, AppState>, path: String) -> Result<String, String> {
-    let conn = state.storage.lock().unwrap();
+    let conn = state.storage.lock().map_err(|e| e.to_string())?;
 
     match conn.as_ref() {
         Some(backend) => backend
             .storage()
             .read_file(&path)
-            .map(|bytes| base64_encode(&bytes))
+            .map(|bytes| utils::base64_encode(&bytes))
             .map_err(|e| format!("Failed to read file: {}", e)),
         None => Err("Not connected to any storage".to_string()),
     }
@@ -159,7 +169,7 @@ pub async fn read_file(state: State<'_, AppState>, path: String) -> Result<Strin
 
 #[tauri::command]
 pub async fn disconnect(state: State<'_, AppState>) -> Result<(), String> {
-    let mut conn = state.storage.lock().unwrap();
+    let mut conn = state.storage.lock().map_err(|e| e.to_string())?;
     if let Some(mut backend) = conn.take() {
         backend.storage_mut().disconnect();
     }
@@ -168,13 +178,13 @@ pub async fn disconnect(state: State<'_, AppState>) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn get_storage_type(state: State<'_, AppState>) -> Result<Option<String>, String> {
-    let conn = state.storage.lock().unwrap();
+    let conn = state.storage.lock().map_err(|e| e.to_string())?;
     Ok(conn.as_ref().map(|b| b.storage().storage_type().to_string()))
 }
 
 #[tauri::command]
 pub async fn is_connected(state: State<'_, AppState>) -> Result<bool, String> {
-    let conn = state.storage.lock().unwrap();
+    let conn = state.storage.lock().map_err(|e| e.to_string())?;
     Ok(conn
         .as_ref()
         .map(|b| b.storage().is_connected())

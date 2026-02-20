@@ -16,9 +16,12 @@
           class="icon-btn"
           :class="{ active: connectionStore.isMediaOnly }"
           @click="connectionStore.toggleMediaOnly"
-          title="Show only photos/videos"
+          :title="connectionStore.isMediaOnly ? 'Show all files' : 'Show only media'"
         >
           <ImageIcon :size="20" />
+        </button>
+        <button class="icon-btn" @click="refreshFiles" title="Refresh">
+          <RefreshCwIcon :size="20" :class="{ spin: isLoading }" />
         </button>
         <button class="icon-btn" @click="handleLogout" title="Disconnect">
           <LogOutIcon :size="20" />
@@ -33,16 +36,22 @@
       </button>
       <template v-if="currentPathParts.length > 0">
         <ChevronRightIcon :size="14" class="breadcrumb-separator" />
-        <template v-for="(part, index) in currentPathParts" :key="index">
+        <template v-for="(part, index) in visiblePathParts" :key="index">
+          <template v-if="index === 0 && hasHiddenParts">
+            <button class="breadcrumb-item ellipsis" @click="showAllParts = true">
+              ...
+            </button>
+            <ChevronRightIcon :size="14" class="breadcrumb-separator" />
+          </template>
           <button
             class="breadcrumb-item"
             @click="navigateToPath(index)"
-            :class="{ active: index === currentPathParts.length - 1 }"
+            :class="{ active: index === visiblePathParts.length - 1 }"
           >
             {{ part }}
           </button>
           <ChevronRightIcon
-            v-if="index < currentPathParts.length - 1"
+            v-if="index < visiblePathParts.length - 1"
             :size="14"
             class="breadcrumb-separator"
           />
@@ -56,15 +65,23 @@
         <p>Loading files...</p>
       </div>
 
+      <div v-else-if="connectionStore.error" class="error-state">
+        <AlertCircleIcon :size="48" />
+        <p>{{ connectionStore.error }}</p>
+        <button @click="refreshFiles" class="retry-btn">
+          <RefreshCwIcon :size="16" />
+          Retry
+        </button>
+      </div>
+
       <div v-else-if="connectionStore.albums.length === 0 && connectionStore.mediaFiles.length === 0" class="empty">
         <FolderOpenIcon :size="48" />
         <p>This folder is empty</p>
       </div>
 
       <template v-else>
-        <!-- Albums Section -->
         <section v-if="connectionStore.albums.length > 0" class="albums-section">
-          <h2 class="section-title">Albums</h2>
+          <h2 class="section-title">Folders</h2>
           <div class="albums-grid">
             <AlbumCard
               v-for="album in connectionStore.albums"
@@ -75,17 +92,17 @@
           </div>
         </section>
 
-        <!-- Media Section -->
         <section v-if="connectionStore.mediaFiles.length > 0" class="media-section">
           <h2 class="section-title">
-            {{ connectionStore.isMediaOnly ? 'Photos & Videos' : 'All Files' }}
+            {{ connectionStore.isMediaOnly ? 'Photos & Videos' : 'Files' }}
           </h2>
           <div class="media-grid">
             <MediaCard
-              v-for="file in connectionStore.mediaFiles"
+              v-for="(file, index) in connectionStore.mediaFiles"
               :key="file.path"
               :file="file"
-              @click="openFile(file)"
+              :index="index"
+              @click="openFile(file, index)"
             />
           </div>
         </section>
@@ -95,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConnectionStore, type FileInfo } from '../stores/connection'
 import AlbumCard from '../components/AlbumCard.vue'
@@ -108,33 +125,58 @@ import {
   LoaderIcon,
   FolderOpenIcon,
   ImageIcon,
+  RefreshCwIcon,
+  AlertCircleIcon,
 } from 'lucide-vue-next'
 
 const router = useRouter()
 const connectionStore = useConnectionStore()
+
+const showAllParts = ref(false)
+const isLoading = ref(false)
 
 const currentPathParts = computed(() => {
   const parts = connectionStore.currentPath.split('/').filter(Boolean)
   return parts
 })
 
+const maxVisibleParts = 4
+
+const hasHiddenParts = computed(() => {
+  return currentPathParts.value.length > maxVisibleParts && !showAllParts.value
+})
+
+const visiblePathParts = computed(() => {
+  if (showAllParts.value || currentPathParts.value.length <= maxVisibleParts) {
+    return currentPathParts.value
+  }
+  return currentPathParts.value.slice(-maxVisibleParts)
+})
+
 function goToRoot() {
   connectionStore.loadFiles(connectionStore.rootPath)
+  showAllParts.value = false
 }
 
 function navigateToPath(index: number) {
-  const parts = currentPathParts.value.slice(0, index + 1)
+  let actualIndex = index
+  if (hasHiddenParts.value) {
+    actualIndex = currentPathParts.value.length - maxVisibleParts + index
+  }
+  const parts = currentPathParts.value.slice(0, actualIndex + 1)
   const path = '/' + parts.join('/')
   connectionStore.loadFiles(path)
+  showAllParts.value = false
 }
 
 function openAlbum(album: FileInfo) {
   connectionStore.loadFiles(album.path)
+  showAllParts.value = false
 }
 
-function openFile(file: FileInfo) {
+function openFile(file: FileInfo, index: number) {
   const isImage = file.mimeType?.startsWith('image/')
-  const isVideo = file.mimeType === 'video'
+  const isVideo = file.mimeType?.startsWith('video/')
   
   if (isImage || isVideo) {
     router.push({
@@ -143,9 +185,17 @@ function openFile(file: FileInfo) {
         file: file.path,
         type: file.mimeType,
         name: file.name,
+        index: index.toString(),
       },
     })
   }
+}
+
+async function refreshFiles() {
+  if (isLoading.value) return
+  isLoading.value = true
+  await connectionStore.loadFiles(connectionStore.currentPath)
+  isLoading.value = false
 }
 
 async function handleLogout() {
@@ -249,6 +299,7 @@ async function handleLogout() {
   padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-sm);
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .breadcrumb-item:hover {
@@ -259,6 +310,10 @@ async function handleLogout() {
 .breadcrumb-item.active {
   color: var(--color-text);
   font-weight: 500;
+}
+
+.breadcrumb-item.ellipsis {
+  cursor: pointer;
 }
 
 .breadcrumb-separator {
@@ -273,7 +328,8 @@ async function handleLogout() {
 }
 
 .loading,
-.empty {
+.empty,
+.error-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -281,6 +337,23 @@ async function handleLogout() {
   gap: var(--spacing-md);
   min-height: 300px;
   color: var(--color-text-secondary);
+}
+
+.retry-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.retry-btn:hover {
+  opacity: 0.9;
 }
 
 .spin {

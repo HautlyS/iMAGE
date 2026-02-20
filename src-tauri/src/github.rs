@@ -1,8 +1,12 @@
 use crate::storage::{detect_mime_type, FileInfo, Storage, StorageType};
+use crate::utils;
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
 use std::io::Read;
 use std::net::TcpStream;
+use std::time::Duration;
+
+const CONNECTION_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GitHubConfig {
@@ -66,6 +70,7 @@ impl GitHubStorage {
         }
 
         let repo_path = &self.config.local_path;
+        let repo_url = &self.config.repo_url;
         let branch = &self.config.branch;
 
         let check_cmd = format!(
@@ -170,12 +175,15 @@ impl Storage for GitHubStorage {
         let host = self.get_github_host();
         let addr = format!("{}:22", host);
 
-        let tcp = TcpStream::connect(&addr)?;
+        let tcp = TcpStream::connect_timeout(
+            &addr.parse()?,
+            Duration::from_secs(CONNECTION_TIMEOUT_SECS),
+        )?;
         let mut session = Session::new()?;
         session.set_tcp_stream(tcp);
         session.handshake()?;
 
-        let key_bytes = base64_decode(&self.config.ssh_key_content)?;
+        let key_bytes = utils::base64_decode(&self.config.ssh_key_content)?;
         let key_str = String::from_utf8(key_bytes)?;
 
         session.userauth_pubkey_memory(&self.config.username, None, &key_str, None)?;
@@ -284,7 +292,7 @@ impl Storage for GitHubStorage {
         _max_size: u32,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let content = self.read_file(path)?;
-        let base64_content = base64_encode(&content);
+        let base64_content = utils::base64_encode(&content);
         Ok(format!("data:image/jpeg;base64,{}", base64_content))
     }
 
@@ -295,16 +303,6 @@ impl Storage for GitHubStorage {
     fn storage_type(&self) -> StorageType {
         StorageType::GitHub
     }
-}
-
-fn base64_decode(input: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    use base64::Engine;
-    Ok(base64::engine::general_purpose::STANDARD.decode(input)?)
-}
-
-fn base64_encode(input: &[u8]) -> String {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD.encode(input)
 }
 
 #[cfg(test)]
