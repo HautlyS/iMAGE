@@ -54,18 +54,13 @@ pub trait Storage: Send + Sync {
     fn storage_type(&self) -> StorageType;
 }
 
-fn base64_encode(input: &[u8]) -> String {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD.encode(input)
-}
-
 pub fn detect_mime_type(filename: &str) -> Option<String> {
     use std::path::Path;
 
-    let ext = Path::new(filename)
-        .extension()
-        .and_then(|e| e.to_str())?
-        .to_lowercase();
+    let ext = match Path::new(filename).extension() {
+        Some(e) => e.to_str().unwrap_or("").to_lowercase(),
+        None => return Some("file".to_string()),
+    };
 
     match ext.as_str() {
         "jpg" | "jpeg" => Some("image/jpeg".to_string()),
@@ -133,12 +128,5 @@ mod tests {
         assert_eq!(detect_mime_type("archive.zip"), Some("archive".to_string()));
         assert_eq!(detect_mime_type("unknown.xyz"), Some("file".to_string()));
         assert_eq!(detect_mime_type("noextension"), Some("file".to_string()));
-    }
-
-    #[test]
-    fn test_base64_encode() {
-        let input = b"Hello, World!";
-        let encoded = base64_encode(input);
-        assert_eq!(encoded, "SGVsbG8sIFdvcmxkIQ==");
     }
 }
