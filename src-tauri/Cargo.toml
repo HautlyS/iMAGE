@@ -28,9 +28,3 @@ lto = true
 opt-level = "s"
 strip = true
 panic = "abort"
-
-[lints.clippy]
-all = "warn"
-pedantic = "warn"
-nursery = "warn"
-unwrap_used = "warn"
