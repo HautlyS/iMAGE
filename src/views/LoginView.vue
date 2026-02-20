@@ -6,58 +6,143 @@
           <ImageIcon :size="48" />
         </div>
         <h1>iMAGE</h1>
-        <p class="subtitle">Connect to your EC2 instance</p>
+        <p class="subtitle">Browse your files anywhere</p>
+      </div>
+
+      <div class="storage-type-selector">
+        <button
+          :class="['type-btn', { active: storageType === 'ec2' }]"
+          @click="storageType = 'ec2'"
+        >
+          <ServerIcon :size="20" />
+          <span>EC2 / S3</span>
+        </button>
+        <button
+          :class="['type-btn', { active: storageType === 'github' }]"
+          @click="storageType = 'github'"
+        >
+          <GithubIcon :size="20" />
+          <span>GitHub Repo</span>
+        </button>
       </div>
 
       <form @submit.prevent="handleConnect" class="login-form">
-        <div class="form-group">
-          <label for="host">IP Address / Host</label>
-          <input
-            id="host"
-            v-model="form.host"
-            type="text"
-            placeholder="192.168.1.1 or ec2-xxx.compute.amazonaws.com"
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input
-            id="username"
-            v-model="form.username"
-            type="text"
-            placeholder="ec2-user, ubuntu, root..."
-            required
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="port">Port</label>
-          <input
-            id="port"
-            v-model="form.port"
-            type="number"
-            placeholder="22"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="pem">SSH Key (.pem file)</label>
-          <div class="file-input-wrapper">
+        <template v-if="storageType === 'ec2'">
+          <div class="form-group">
+            <label for="host">IP Address / Host</label>
             <input
-              type="file"
-              id="pem"
-              accept=".pem,.key,.txt"
-              @change="handleFileChange"
-              class="file-input"
+              id="host"
+              v-model="ec2Form.host"
+              type="text"
+              placeholder="192.168.1.1 or ec2-xxx.compute.amazonaws.com"
+              required
             />
-            <label for="pem" class="file-label">
-              <UploadIcon :size="20" />
-              <span>{{ pemFileName || 'Choose PEM file' }}</span>
-            </label>
           </div>
-        </div>
+
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input
+              id="username"
+              v-model="ec2Form.username"
+              type="text"
+              placeholder="ec2-user, ubuntu, root..."
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="port">Port</label>
+            <input
+              id="port"
+              v-model="ec2Form.port"
+              type="number"
+              placeholder="22"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="pem">SSH Key (.pem file)</label>
+            <div class="file-input-wrapper">
+              <input
+                type="file"
+                id="pem"
+                accept=".pem,.key,.txt"
+                @change="handlePemFileChange"
+                class="file-input"
+              />
+              <label for="pem" class="file-label">
+                <UploadIcon :size="20" />
+                <span>{{ pemFileName || 'Choose PEM file' }}</span>
+              </label>
+            </div>
+          </div>
+        </template>
+
+        <template v-else-if="storageType === 'github'">
+          <div class="form-group">
+            <label for="repoUrl">Repository URL (SSH)</label>
+            <input
+              id="repoUrl"
+              v-model="githubForm.repoUrl"
+              type="text"
+              placeholder="git@github.com:username/repo.git"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="ghUsername">Git Username</label>
+            <input
+              id="ghUsername"
+              v-model="githubForm.username"
+              type="text"
+              placeholder="git"
+              required
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="branch">Branch</label>
+            <input
+              id="branch"
+              v-model="githubForm.branch"
+              type="text"
+              placeholder="main"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="localPath">Remote Clone Path</label>
+            <input
+              id="localPath"
+              v-model="githubForm.localPath"
+              type="text"
+              placeholder="/tmp/image-repo"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="sshKey">SSH Private Key</label>
+            <div class="file-input-wrapper">
+              <input
+                type="file"
+                id="sshKey"
+                accept=".pem,.key,id_rsa,id_ed25519"
+                @change="handleSshKeyFileChange"
+                class="file-input"
+              />
+              <label for="sshKey" class="file-label">
+                <UploadIcon :size="20" />
+                <span>{{ sshKeyFileName || 'Choose SSH private key' }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="info-box">
+            <InfoIcon :size="16" />
+            <span>All files will be stored using Git LFS for large file support.</span>
+          </div>
+        </template>
 
         <div v-if="connectionStore.error" class="error-message">
           <AlertCircleIcon :size="16" />
@@ -78,8 +163,8 @@
       <div v-if="connectionStore.savedConfig" class="saved-connection">
         <p>Previously connected to:</p>
         <button @click="useSavedConnection" class="saved-btn">
-          <ServerIcon :size="16" />
-          <span>{{ connectionStore.savedConfig.username }}@{{ connectionStore.savedConfig.host }}</span>
+          <component :is="savedConfigIcon" :size="16" />
+          <span>{{ savedConfigDescription }}</span>
         </button>
       </div>
     </div>
@@ -97,25 +182,59 @@ import {
   LoaderIcon,
   AlertCircleIcon,
   ServerIcon,
+  InfoIcon,
 } from 'lucide-vue-next'
+import GithubIcon from '../components/GithubIcon.vue'
 
 const router = useRouter()
 const connectionStore = useConnectionStore()
 
-const form = ref({
+const storageType = ref<'ec2' | 'github'>('ec2')
+
+const ec2Form = ref({
   host: '',
   username: '',
   port: 22,
   pemContent: '',
 })
 
-const pemFileName = ref('')
-
-const isFormValid = computed(() => {
-  return form.value.host && form.value.username && form.value.pemContent
+const githubForm = ref({
+  repoUrl: '',
+  username: 'git',
+  branch: 'main',
+  localPath: '/tmp/image-repo',
+  sshKeyContent: '',
 })
 
-async function handleFileChange(event: Event) {
+const pemFileName = ref('')
+const sshKeyFileName = ref('')
+
+const isFormValid = computed(() => {
+  if (storageType.value === 'ec2') {
+    return ec2Form.value.host && ec2Form.value.username && ec2Form.value.pemContent
+  } else {
+    return githubForm.value.repoUrl && githubForm.value.username && githubForm.value.sshKeyContent
+  }
+})
+
+const savedConfigIcon = computed(() => {
+  if (connectionStore.savedConfig?.type === 'github') {
+    return GithubIcon
+  }
+  return ServerIcon
+})
+
+const savedConfigDescription = computed(() => {
+  const config = connectionStore.savedConfig
+  if (!config) return ''
+  if (config.type === 'ec2') {
+    return `${config.username}@${config.host}`
+  } else {
+    return config.repoUrl
+  }
+})
+
+function handlePemFileChange(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   
@@ -124,19 +243,47 @@ async function handleFileChange(event: Event) {
     const reader = new FileReader()
     reader.onload = (e) => {
       const content = e.target?.result as string
-      // Remove header/footer and whitespace for base64 encoding
-      form.value.pemContent = btoa(content)
+      ec2Form.value.pemContent = btoa(content)
+    }
+    reader.readAsText(file)
+  }
+}
+
+function handleSshKeyFileChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  
+  if (file) {
+    sshKeyFileName.value = file.name
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const content = e.target?.result as string
+      githubForm.value.sshKeyContent = btoa(content)
     }
     reader.readAsText(file)
   }
 }
 
 async function handleConnect() {
-  const config: ConnectionConfig = {
-    host: form.value.host,
-    username: form.value.username,
-    pemContent: form.value.pemContent,
-    port: form.value.port || 22,
+  let config: ConnectionConfig
+
+  if (storageType.value === 'ec2') {
+    config = {
+      type: 'ec2',
+      host: ec2Form.value.host,
+      username: ec2Form.value.username,
+      pemContent: ec2Form.value.pemContent,
+      port: ec2Form.value.port || 22,
+    }
+  } else {
+    config = {
+      type: 'github',
+      repoUrl: githubForm.value.repoUrl,
+      username: githubForm.value.username,
+      sshKeyContent: githubForm.value.sshKeyContent,
+      branch: githubForm.value.branch || 'main',
+      localPath: githubForm.value.localPath || '/tmp/image-repo',
+    }
   }
 
   const success = await connectionStore.connect(config)
@@ -199,6 +346,39 @@ async function useSavedConnection() {
 .subtitle {
   color: var(--color-text-secondary);
   font-size: 0.875rem;
+}
+
+.storage-type-selector {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.type-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: var(--color-surface-light);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+}
+
+.type-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.type-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
 }
 
 .login-form {
@@ -266,6 +446,17 @@ async function useSavedConnection() {
 .file-label span {
   color: var(--color-text-secondary);
   font-size: 0.875rem;
+}
+
+.info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
 }
 
 .error-message {

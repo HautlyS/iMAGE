@@ -8,7 +8,35 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 9
+        run_install: false
+    
+    - name: Install dependencies
+      run: pnpm install
+    
+    - name: Run tests
+      run: pnpm test
+    
+    - name: Build frontend
+      run: pnpm build
+
   build-ios:
+    needs: test
     runs-on: macos-latest
     
     steps:
@@ -63,11 +91,8 @@ jobs:
     
     - name: Build iOS app for Simulator (no code signing)
       run: |
-        # Create the server-addr file that Tauri xcode-script expects
         mkdir -p /tmp
         echo "127.0.0.1:5173" > /tmp/com.hautlys.image-server-addr
-        
-        # Build using correct target format
         pnpm tauri ios build --target aarch64-sim
       env:
         CI: "true"
@@ -79,7 +104,6 @@ jobs:
         echo "Looking for .app bundles..."
         find . -name "*.app" -type d 2>/dev/null | head -20
         
-        # Find any .app bundle created
         APP_PATH=$(find . -name "*.app" -type d 2>/dev/null | grep -v "Pods" | head -1)
         
         if [ -n "$APP_PATH" ]; then

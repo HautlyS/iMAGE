@@ -5,7 +5,10 @@
         <h1>iMAGE</h1>
         <span class="connection-status" :class="{ connected: connectionStore.isConnected }">
           <WifiIcon :size="14" />
-          {{ connectionStore.isConnected ? 'Connected' : 'Disconnected' }}
+          <template v-if="connectionStore.isConnected">
+            {{ connectionStore.storageType === 'github' ? 'GitHub' : 'EC2' }} Connected
+          </template>
+          <template v-else>Disconnected</template>
         </span>
       </div>
       <div class="header-actions">
@@ -116,9 +119,7 @@ const currentPathParts = computed(() => {
 })
 
 function goToRoot() {
-  const username = connectionStore.savedConfig?.username
-  const homePath = username === 'root' ? '/root' : `/home/${username}`
-  connectionStore.loadFiles(homePath)
+  connectionStore.loadFiles(connectionStore.rootPath)
 }
 
 function navigateToPath(index: number) {
