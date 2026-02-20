@@ -70,7 +70,6 @@ impl GitHubStorage {
         }
 
         let repo_path = &self.config.local_path;
-        let repo_url = &self.config.repo_url;
         let branch = &self.config.branch;
 
         let check_cmd = format!(
