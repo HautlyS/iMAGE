@@ -199,7 +199,7 @@ impl Storage for GitHubStorage {
     }
 
     fn is_connected(&self) -> bool {
-        self.session.as_ref().map_or(false, |s| s.authenticated())
+        self.session.as_ref().is_some_and(|s| s.authenticated())
     }
 
     fn list_directory(&self, path: &str) -> Result<Vec<FileInfo>, Box<dyn std::error::Error>> {
