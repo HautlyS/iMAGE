@@ -89,6 +89,7 @@ pub fn detect_mime_type(filename: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::str::FromStr;
 
     #[test]
     fn test_storage_type_display() {

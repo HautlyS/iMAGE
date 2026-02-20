@@ -1,9 +1,8 @@
 use crate::storage::{detect_mime_type, FileInfo, Storage, StorageType};
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::net::TcpStream;
-use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GitHubConfig {
@@ -74,7 +73,6 @@ impl GitHubStorage {
         }
 
         let repo_path = &self.config.local_path;
-        let repo_url = &self.config.repo_url;
         let branch = &self.config.branch;
 
         let check_cmd = format!(
