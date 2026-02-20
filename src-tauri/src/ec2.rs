@@ -152,6 +152,7 @@ fn base64_encode(input: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine;
 
     fn create_test_config() -> Ec2Config {
         Ec2Config {

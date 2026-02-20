@@ -1,6 +1,6 @@
 use crate::ec2::Ec2Storage;
 use crate::github::GitHubStorage;
-use crate::storage::{FileInfo, Storage, StorageType};
+use crate::storage::{FileInfo, Storage};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::State;

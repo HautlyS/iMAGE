@@ -53,16 +53,9 @@ impl GitHubStorage {
         let mut output = String::new();
         channel.read_to_string(&mut output)?;
 
-        let mut stderr = String::new();
-        channel.stderr_read_to_string(&mut stderr)?;
-
         channel.wait_eof()?;
         channel.close()?;
         channel.wait_close()?;
-
-        if !stderr.is_empty() && output.is_empty() {
-            return Err(format!("Command failed: {}", stderr).into());
-        }
 
         Ok(output)
     }
@@ -317,6 +310,7 @@ fn base64_encode(input: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use base64::Engine;
 
     fn create_test_config() -> GitHubConfig {
         GitHubConfig {
