@@ -92,7 +92,7 @@ impl Storage for Ec2Storage {
                 path: entry_path.to_string_lossy().to_string(),
                 size: stat.size.unwrap_or(0),
                 is_dir: stat.is_dir(),
-                modified: stat.mtime.map(|t| t as u64),
+                modified: stat.mtime,
                 mime_type,
                 thumbnail: None,
             });
