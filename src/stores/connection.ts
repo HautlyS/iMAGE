@@ -52,7 +52,7 @@ export const useConnectionStore = defineStore('connection', () => {
     return files.value.filter(file => {
       if (file.isDir) return true
       const mime = file.mimeType || ''
-      return mime.startsWith('image/') || mime === 'video'
+      return mime.startsWith('image/') || mime.startsWith('video/')
     })
   })
 

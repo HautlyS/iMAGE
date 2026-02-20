@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { useConnectionStore, type Ec2ConnectionConfig, type GitHubConnectionConfig } from '../stores/connection'
+import { useConnectionStore, type Ec2ConnectionConfig, type GitHubConnectionConfig, type FileInfo } from '../stores/connection'
 
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn()
@@ -8,11 +8,17 @@ vi.mock('@tauri-apps/api/core', () => ({
 
 import { invoke } from '@tauri-apps/api/core'
 
+const mockInvoke = vi.mocked(invoke)
+
 describe('connection store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   describe('initial state', () => {
@@ -23,10 +29,18 @@ describe('connection store', () => {
       expect(store.error).toBeNull()
       expect(store.savedConfig).toBeNull()
       expect(store.storageType).toBeNull()
+      expect(store.files).toEqual([])
+      expect(store.currentPath).toBe('/')
+      expect(store.rootPath).toBe('/')
+    })
+
+    it('should have media filter off by default', () => {
+      const store = useConnectionStore()
+      expect(store.isMediaOnly).toBe(false)
     })
   })
 
-  describe('filteredFiles', () => {
+  describe('computed properties', () => {
     it('should return all files when isMediaOnly is false', () => {
       const store = useConnectionStore()
       store.files = [
@@ -42,19 +56,20 @@ describe('connection store', () => {
       const store = useConnectionStore()
       store.files = [
         { name: 'image.jpg', path: '/image.jpg', size: 100, isDir: false, mimeType: 'image/jpeg' },
-        { name: 'video.mp4', path: '/video.mp4', size: 100, isDir: false, mimeType: 'video' },
+        { name: 'video.mp4', path: '/video.mp4', size: 100, isDir: false, mimeType: 'video/mp4' },
         { name: 'doc.pdf', path: '/doc.pdf', size: 200, isDir: false, mimeType: 'application/pdf' },
         { name: 'folder', path: '/folder', size: 0, isDir: true }
       ]
       store.isMediaOnly = true
       
-      expect(store.filteredFiles).toHaveLength(3)
-      expect(store.filteredFiles.find(f => f.name === 'doc.pdf')).toBeUndefined()
-      expect(store.filteredFiles.find(f => f.name === 'folder')).toBeDefined()
+      const filtered = store.filteredFiles
+      expect(filtered).toHaveLength(3)
+      expect(filtered.find(f => f.name === 'doc.pdf')).toBeUndefined()
+      expect(filtered.find(f => f.name === 'folder')).toBeDefined()
+      expect(filtered.find(f => f.name === 'image.jpg')).toBeDefined()
+      expect(filtered.find(f => f.name === 'video.mp4')).toBeDefined()
     })
-  })
 
-  describe('albums and mediaFiles', () => {
     it('should separate albums and media files', () => {
       const store = useConnectionStore()
       store.files = [
@@ -84,7 +99,6 @@ describe('connection store', () => {
   describe('connectEc2', () => {
     it('should call connect_ec2 with correct parameters', async () => {
       const store = useConnectionStore()
-      const mockInvoke = vi.mocked(invoke)
       mockInvoke.mockResolvedValueOnce({
         success: true,
         message: 'Connected',
@@ -113,11 +127,11 @@ describe('connection store', () => {
       })
       expect(store.isConnected).toBe(true)
       expect(store.storageType).toBe('ec2')
+      expect(store.rootPath).toBe('/home/ubuntu')
     })
 
     it('should handle connection failure', async () => {
       const store = useConnectionStore()
-      const mockInvoke = vi.mocked(invoke)
       mockInvoke.mockResolvedValueOnce({
         success: false,
         message: 'Connection failed',
@@ -139,12 +153,55 @@ describe('connection store', () => {
       expect(store.isConnected).toBe(false)
       expect(store.error).toBe('Connection failed')
     })
+
+    it('should handle invoke errors', async () => {
+      const store = useConnectionStore()
+      mockInvoke.mockRejectedValueOnce(new Error('Network error'))
+
+      const config: Ec2ConnectionConfig = {
+        type: 'ec2',
+        host: 'test',
+        username: 'ubuntu',
+        pemContent: 'dGVzdA==',
+        port: 22
+      }
+
+      const result = await store.connectEc2(config)
+      
+      expect(result).toBe(false)
+      expect(store.error).toBe('Error: Network error')
+    })
+
+    it('should use default port 22 if not specified', async () => {
+      const store = useConnectionStore()
+      mockInvoke.mockResolvedValueOnce({
+        success: true,
+        message: 'Connected',
+        storage_type: 'ec2',
+        root_path: '/home/ubuntu'
+      })
+
+      const config: Ec2ConnectionConfig = {
+        type: 'ec2',
+        host: '192.168.1.1',
+        username: 'ubuntu',
+        pemContent: 'dGVzdA==',
+        port: 0
+      }
+
+      await store.connectEc2(config)
+      
+      expect(mockInvoke).toHaveBeenCalledWith('connect_ec2', {
+        request: expect.objectContaining({
+          port: 22
+        })
+      })
+    })
   })
 
   describe('connectGithub', () => {
     it('should call connect_github with correct parameters', async () => {
       const store = useConnectionStore()
-      const mockInvoke = vi.mocked(invoke)
       mockInvoke.mockResolvedValueOnce({
         success: true,
         message: 'Connected',
@@ -176,12 +233,131 @@ describe('connection store', () => {
       expect(store.isConnected).toBe(true)
       expect(store.storageType).toBe('github')
     })
+
+    it('should use default branch and path if not specified', async () => {
+      const store = useConnectionStore()
+      mockInvoke.mockResolvedValueOnce({
+        success: true,
+        message: 'Connected',
+        storage_type: 'github',
+        root_path: '/'
+      })
+
+      const config: GitHubConnectionConfig = {
+        type: 'github',
+        repoUrl: 'git@github.com:test/repo.git',
+        username: 'git',
+        sshKeyContent: 'dGVzdA==',
+        branch: '',
+        localPath: ''
+      }
+
+      await store.connectGithub(config)
+      
+      expect(mockInvoke).toHaveBeenCalledWith('connect_github', {
+        request: expect.objectContaining({
+          branch: 'main',
+          local_path: '/tmp/image-repo'
+        })
+      })
+    })
+  })
+
+  describe('connect', () => {
+    it('should route to connectEc2 for ec2 type', async () => {
+      const store = useConnectionStore()
+      mockInvoke.mockResolvedValueOnce({
+        success: true,
+        message: 'Connected',
+        storage_type: 'ec2',
+        root_path: '/home/ubuntu'
+      })
+
+      const config: Ec2ConnectionConfig = {
+        type: 'ec2',
+        host: 'test',
+        username: 'ubuntu',
+        pemContent: 'dGVzdA==',
+        port: 22
+      }
+
+      await store.connect(config)
+      
+      expect(mockInvoke).toHaveBeenCalledWith('connect_ec2', expect.anything())
+    })
+
+    it('should route to connectGithub for github type', async () => {
+      const store = useConnectionStore()
+      mockInvoke.mockResolvedValueOnce({
+        success: true,
+        message: 'Connected',
+        storage_type: 'github',
+        root_path: '/'
+      })
+
+      const config: GitHubConnectionConfig = {
+        type: 'github',
+        repoUrl: 'git@github.com:test/repo.git',
+        username: 'git',
+        sshKeyContent: 'dGVzdA==',
+        branch: 'main',
+        localPath: '/tmp/repo'
+      }
+
+      await store.connect(config)
+      
+      expect(mockInvoke).toHaveBeenCalledWith('connect_github', expect.anything())
+    })
+
+    it('should return false for unknown type', async () => {
+      const store = useConnectionStore()
+      
+      const result = await store.connect({ type: 'unknown' } as any)
+      
+      expect(result).toBe(false)
+      expect(store.error).toBe('Unknown storage type')
+    })
+  })
+
+  describe('loadFiles', () => {
+    it('should update currentPath and files on success', async () => {
+      const store = useConnectionStore()
+      const mockFiles: FileInfo[] = [
+        { name: 'test.jpg', path: '/test.jpg', size: 100, isDir: false, mimeType: 'image/jpeg' }
+      ]
+      mockInvoke.mockResolvedValueOnce(mockFiles)
+
+      await store.loadFiles('/home/user')
+      
+      expect(store.currentPath).toBe('/home/user')
+      expect(store.files).toEqual(mockFiles)
+    })
+
+    it('should handle errors', async () => {
+      const store = useConnectionStore()
+      mockInvoke.mockRejectedValueOnce(new Error('Failed to list'))
+
+      await store.loadFiles('/home/user')
+      
+      expect(store.error).toBe('Error: Failed to list')
+    })
+
+    it('should set isLoadingFiles correctly', async () => {
+      const store = useConnectionStore()
+      mockInvoke.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve([]), 10)))
+
+      const promise = store.loadFiles('/home')
+      expect(store.isLoadingFiles).toBe(true)
+      
+      await promise
+      expect(store.isLoadingFiles).toBe(false)
+    })
   })
 
   describe('disconnect', () => {
     it('should clear connection state', async () => {
       const store = useConnectionStore()
-      const mockInvoke = vi.mocked(invoke)
+      mockInvoke.mockResolvedValueOnce(undefined)
       
       store.isConnected = true
       store.storageType = 'ec2'
@@ -199,7 +375,6 @@ describe('connection store', () => {
   describe('localStorage', () => {
     it('should save config to localStorage on successful EC2 connection', async () => {
       const store = useConnectionStore()
-      const mockInvoke = vi.mocked(invoke)
       mockInvoke.mockResolvedValueOnce({
         success: true,
         message: 'Connected',
@@ -220,6 +395,32 @@ describe('connection store', () => {
       const saved = JSON.parse(localStorage.getItem('image-connection') || '{}')
       expect(saved.type).toBe('ec2')
       expect(saved.host).toBe('192.168.1.1')
+    })
+
+    it('should save GitHub config to localStorage', async () => {
+      const store = useConnectionStore()
+      mockInvoke.mockResolvedValueOnce({
+        success: true,
+        message: 'Connected',
+        storage_type: 'github',
+        root_path: '/'
+      })
+
+      const config: GitHubConnectionConfig = {
+        type: 'github',
+        repoUrl: 'git@github.com:test/repo.git',
+        username: 'git',
+        sshKeyContent: 'dGVzdA==',
+        branch: 'develop',
+        localPath: '/custom/path'
+      }
+
+      await store.connectGithub(config)
+      
+      const saved = JSON.parse(localStorage.getItem('image-connection') || '{}')
+      expect(saved.type).toBe('github')
+      expect(saved.repoUrl).toBe('git@github.com:test/repo.git')
+      expect(saved.branch).toBe('develop')
     })
 
     it('should remove config from localStorage on disconnect', async () => {
