@@ -328,11 +328,7 @@ impl Storage for GitHubStorage {
                 thumbnail.write_to(&mut buffer, ImageFormat::WebP)?;
                 "image/webp"
             }
-            ImageFormat::Jpeg
-            | ImageFormat::Bmp
-            | ImageFormat::Tiff
-            | ImageFormat::Heic
-            | ImageFormat::Heif => {
+            ImageFormat::Jpeg | ImageFormat::Bmp | ImageFormat::Tiff => {
                 thumbnail.write_to(&mut buffer, ImageFormat::Jpeg)?;
                 "image/jpeg"
             }
