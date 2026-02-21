@@ -1,5 +1,6 @@
 use crate::storage::{detect_mime_type, FileInfo, Storage, StorageType};
 use crate::utils;
+use image::GenericImageView;
 use serde::{Deserialize, Serialize};
 use ssh2::Session;
 use std::io::Read;
@@ -117,11 +118,38 @@ impl Storage for Ec2Storage {
     fn get_file_thumbnail(
         &self,
         path: &str,
-        _max_size: u32,
+        max_size: u32,
     ) -> Result<String, Box<dyn std::error::Error>> {
         let content = self.read_file(path)?;
-        let base64_content = utils::base64_encode(&content);
-        Ok(format!("data:image/jpeg;base64,{}", base64_content))
+
+        let mime = detect_mime_type(path).unwrap_or_else(|| "application/octet-stream".to_string());
+
+        if mime.starts_with("image/") {
+            let img = image::load_from_memory(&content)?;
+            let (width, height) = img.dimensions();
+            let scale = if width > height {
+                max_size as f32 / width as f32
+            } else {
+                max_size as f32 / height as f32
+            };
+            let new_width = (width as f32 * scale) as u32;
+            let new_height = (height as f32 * scale) as u32;
+            let resized = img.resize(new_width, new_height, image::imageops::FilterType::Lanczos3);
+
+            let mut buf = Vec::new();
+            let format = match Path::new(path).extension().and_then(|e| e.to_str()) {
+                Some("png") => image::ImageFormat::Png,
+                Some("gif") => image::ImageFormat::Gif,
+                Some("webp") => image::ImageFormat::WebP,
+                _ => image::ImageFormat::Jpeg,
+            };
+            resized.write_to(&mut std::io::Cursor::new(&mut buf), format)?;
+            let base64_content = utils::base64_encode(&buf);
+            Ok(format!("data:{};base64,{}", mime, base64_content))
+        } else {
+            let base64_content = utils::base64_encode(&content);
+            Ok(format!("data:{};base64,{}", mime, base64_content))
+        }
     }
 
     fn get_root_path(&self) -> String {

@@ -13,7 +13,7 @@
     "tauri:build": "tauri build",
     "tauri:build:android": "tauri android build",
     "tauri:build:ios": "tauri ios build",
-    "lint": "eslint . --ext .vue,.ts,.tsx --fix",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
@@ -35,6 +35,12 @@
     "vitest": "^2.0.0",
     "@vue/test-utils": "^2.4.0",
     "happy-dom": "^15.0.0",
-    "@vitest/coverage-v8": "^2.0.0"
+    "@vitest/coverage-v8": "^2.0.0",
+    "eslint": "^9.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "eslint-plugin-vue": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "globals": "^15.0.0"
   }
 }

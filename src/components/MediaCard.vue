@@ -1,5 +1,5 @@
 <template>
-  <div class="media-card" :class="{ 'is-video': isVideo, 'is-image': isImage }">
+  <div ref="cardRef" class="media-card" :class="{ 'is-video': isVideo, 'is-image': isImage }">
     <div class="media-thumbnail">
       <template v-if="isImage">
         <img
@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { ImageIcon, PlayIcon, FileIcon, VideoIcon } from 'lucide-vue-next'
 import type { FileInfo } from '../stores/connection'
@@ -52,6 +52,8 @@ const isVideo = computed(() => props.file.mimeType?.startsWith('video/'))
 
 const thumbnailLoaded = ref(false)
 const thumbnailUrl = ref('')
+const cardRef = ref<HTMLElement | null>(null)
+const hasBeenVisible = ref(false)
 
 const colors = [
   '#667eea', '#764ba2', '#f093fb', '#f5576c',
@@ -68,15 +70,42 @@ function onThumbnailError() {
   thumbnailLoaded.value = false
 }
 
-onMounted(async () => {
-  if (isImage.value) {
-    try {
-      const base64Data = await invoke<string>('read_file', { path: props.file.path })
-      thumbnailUrl.value = `data:${props.file.mimeType};base64,${base64Data}`
-      thumbnailLoaded.value = true
-    } catch {
-      thumbnailLoaded.value = false
-    }
+async function loadThumbnail() {
+  if (!isImage.value || thumbnailLoaded.value) return
+  
+  try {
+    const dataUrl = await invoke<string>('get_file_thumbnail', { 
+      path: props.file.path, 
+      maxSize: 200 
+    })
+    thumbnailUrl.value = dataUrl
+    thumbnailLoaded.value = true
+  } catch {
+    thumbnailLoaded.value = false
+  }
+}
+
+onMounted(() => {
+  if (!isImage.value) return
+  
+  // Use Intersection Observer for lazy loading
+  if (cardRef.value) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasBeenVisible.value) {
+            hasBeenVisible.value = true
+            loadThumbnail()
+            observer.disconnect()
+          }
+        })
+      },
+      { rootMargin: '100px' } // Start loading 100px before visible
+    )
+    observer.observe(cardRef.value)
+    
+    // Store observer for cleanup
+    onUnmounted(() => observer.disconnect())
   }
 })
 </script>

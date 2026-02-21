@@ -97,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { invoke } from '@tauri-apps/api/core'
 import { useConnectionStore, type FileInfo } from '../stores/connection'
@@ -175,7 +175,7 @@ function getVideoMimeType(): string {
   return mimeTypes[ext] || 'video/mp4'
 }
 
-onMounted(async () => {
+async function loadFile() {
   if (!filePath.value) {
     error.value = 'No file specified'
     isLoading.value = false
@@ -208,8 +208,23 @@ onMounted(async () => {
     error.value = String(e)
     isLoading.value = false
   }
+}
 
+onMounted(async () => {
+  await loadFile()
   window.addEventListener('keydown', handleKeydown)
+})
+
+watch(filePath, async (newPath, oldPath) => {
+  if (oldPath && newPath !== oldPath) {
+    isLoading.value = true
+    error.value = ''
+    fileData.value = ''
+    zoom.value = 1
+    panX.value = 0
+    panY.value = 0
+    await loadFile()
+  }
 })
 
 onUnmounted(() => {

@@ -16,6 +16,7 @@ pub fn run() {
             commands::connect_github,
             commands::list_files,
             commands::read_file,
+            commands::get_file_thumbnail,
             commands::disconnect,
             commands::get_storage_type,
             commands::is_connected,

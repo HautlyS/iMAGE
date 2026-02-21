@@ -168,6 +168,24 @@ pub async fn read_file(state: State<'_, AppState>, path: String) -> Result<Strin
 }
 
 #[tauri::command]
+pub async fn get_file_thumbnail(
+    state: State<'_, AppState>,
+    path: String,
+    max_size: Option<u32>,
+) -> Result<String, String> {
+    let conn = state.storage.lock().map_err(|e| e.to_string())?;
+    let max = max_size.unwrap_or(200); // Default 200px
+
+    match conn.as_ref() {
+        Some(backend) => backend
+            .storage()
+            .get_file_thumbnail(&path, max)
+            .map_err(|e| format!("Failed to get thumbnail: {}", e)),
+        None => Err("Not connected to any storage".to_string()),
+    }
+}
+
+#[tauri::command]
 pub async fn disconnect(state: State<'_, AppState>) -> Result<(), String> {
     let mut conn = state.storage.lock().map_err(|e| e.to_string())?;
     if let Some(mut backend) = conn.take() {

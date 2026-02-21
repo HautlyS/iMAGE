@@ -59,7 +59,7 @@ pub fn detect_mime_type(filename: &str) -> Option<String> {
 
     let ext = match Path::new(filename).extension() {
         Some(e) => e.to_str().unwrap_or("").to_lowercase(),
-        None => return Some("file".to_string()),
+        None => return None,
     };
 
     match ext.as_str() {
@@ -106,7 +106,7 @@ pub fn detect_mime_type(filename: &str) -> Option<String> {
         "gz" => Some("application/gzip".to_string()),
         "rar" => Some("application/vnd.rar".to_string()),
         "7z" => Some("application/x-7z-compressed".to_string()),
-        _ => Some("file".to_string()),
+        _ => None,
     }
 }
 
@@ -161,7 +161,7 @@ mod tests {
             detect_mime_type("archive.zip"),
             Some("application/zip".to_string())
         );
-        assert_eq!(detect_mime_type("unknown.xyz"), Some("file".to_string()));
-        assert_eq!(detect_mime_type("noextension"), Some("file".to_string()));
+        assert_eq!(detect_mime_type("unknown.xyz"), None);
+        assert_eq!(detect_mime_type("noextension"), None);
     }
 }

@@ -9,7 +9,6 @@ telemetry-id
 
 # Tauri
 target/
-Cargo.lock
 src-tauri/gen/android/
 src-tauri/gen/ios/
 
